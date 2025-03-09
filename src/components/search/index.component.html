@@ -22,6 +22,7 @@
         id="search-engine-input"
         (keyup)="onKey($event)"
         autocomplete="off"
+        #input
       />
     </nz-input-group>
     <ng-template #prefixIcon>
@@ -79,6 +80,10 @@
         <nz-option
           [nzLabel]="$t('_quick')"
           [nzValue]="SearchType.Quick"
+        ></nz-option>
+        <nz-option
+          [nzLabel]="$t('_tag')"
+          [nzValue]="SearchType.Tag"
         ></nz-option>
         <nz-option
           *ngIf="isLogin"

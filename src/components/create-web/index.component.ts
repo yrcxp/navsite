@@ -2,15 +2,17 @@
 // Copyright @ 2018-present xiejiahe. All rights reserved.
 // See https://github.com/xjh22222228/nav
 
-import { Component, Output, EventEmitter } from '@angular/core'
+import { Component, ViewChild, ElementRef } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { FormsModule, ReactiveFormsModule } from '@angular/forms'
 import { getTextContent, getClassById } from 'src/utils'
+import { getTempId } from 'src/utils/utils'
 import { setWebsiteList, updateByWeb } from 'src/utils/web'
 import { FormBuilder, FormGroup, Validators, FormArray } from '@angular/forms'
 import { IWebProps, IWebTag, TopType, ActionType } from 'src/types'
 import { NzMessageService } from 'ng-zorro-antd/message'
-import { saveUserCollect, getWebInfo } from 'src/api'
+import { NzNotificationService } from 'ng-zorro-antd/notification'
+import { saveUserCollect, getWebInfo, getTranslate } from 'src/api'
 import { $t } from 'src/locale'
 import { settings, websiteList, tagList, tagMap } from 'src/store'
 import { isLogin, getPermissions } from 'src/utils/user'
@@ -25,6 +27,7 @@ import { UploadComponent } from 'src/components/upload/index.component'
 import { NzIconModule } from 'ng-zorro-antd/icon'
 import { NzButtonModule } from 'ng-zorro-antd/button'
 import { NzSelectModule } from 'ng-zorro-antd/select'
+import { SELF_SYMBOL } from 'src/constants/symbol'
 import event from 'src/utils/mitt'
 
 @Component({
@@ -50,16 +53,17 @@ import event from 'src/utils/mitt'
   styleUrls: ['./index.component.scss'],
 })
 export class CreateWebComponent {
-  @Output() onOk = new EventEmitter()
+  @ViewChild('inputUrl', { static: false }) inputUrl!: ElementRef
 
-  $t = $t
-  isLogin: boolean = isLogin
+  readonly $t = $t
+  readonly isLogin: boolean = isLogin
+  readonly settings = settings
+  readonly permissions = getPermissions(settings)
   validateForm!: FormGroup
   tagList = tagList
   uploading = false
   getting = false
-  settings = settings
-  permissions = getPermissions(settings)
+  translating = false
   showModal = false
   detail: IWebProps | null | undefined = null
   isMove = false // 提交完是否可以移动
@@ -70,7 +74,11 @@ export class CreateWebComponent {
     { label: TopType[2], value: TopType.Shortcut, checked: false },
   ]
 
-  constructor(private fb: FormBuilder, private message: NzMessageService) {
+  constructor(
+    private fb: FormBuilder,
+    private message: NzMessageService,
+    private notification: NzNotificationService
+  ) {
     event.on('CREATE_WEB', (props: any) => {
       this.open(this, props)
     })
@@ -101,6 +109,10 @@ export class CreateWebComponent {
 
   get isTop(): boolean {
     return this.validateForm.get('top')?.value || false
+  }
+
+  get desc(): string {
+    return this.validateForm.get('desc')?.value || ''
   }
 
   open(
@@ -148,10 +160,20 @@ export class CreateWebComponent {
     })
 
     this.validateForm.get('topOptions')!.setValue(topOptions)
+    this.focusUrl()
   }
 
   get iconUrl() {
     return this.validateForm.get('icon')?.value || ''
+  }
+
+  private focusUrl() {
+    if (this.validateForm.get('url')?.value) {
+      return
+    }
+    setTimeout(() => {
+      this.inputUrl?.nativeElement?.focus()
+    }, 400)
   }
 
   onClose() {
@@ -176,7 +198,7 @@ export class CreateWebComponent {
     }
     try {
       // test url
-      if (url[0] === '!') {
+      if (url[0] === SELF_SYMBOL) {
         url = url.slice(1)
       }
       new URL(url)
@@ -219,6 +241,55 @@ export class CreateWebComponent {
 
   onChangeFile(data: any) {
     this.validateForm.get('icon')!.setValue(data.cdn)
+  }
+
+  handleTranslate() {
+    this.translating = true
+    getTranslate({
+      content: this.desc,
+    })
+      .then((res) => {
+        this.validateForm.get('desc')!.setValue(res.data.content || '')
+      })
+      .finally(() => {
+        this.translating = false
+      })
+  }
+
+  checkRepeat() {
+    try {
+      const { url } = this.validateForm.value
+      const { oneIndex, twoIndex, threeIndex } = getClassById(this.parentId)
+
+      const w = websiteList[oneIndex].nav[twoIndex].nav[threeIndex].nav
+      const repeatData = w.find((item) => {
+        if (item.url === url) {
+          return true
+        }
+        try {
+          const domain = new URL(item.url).host
+          const domain2 = new URL(url).host
+          return domain === domain2
+        } catch {
+          return false
+        }
+      })
+      if (repeatData) {
+        this.notification.error(
+          $t('_repeatTip'),
+          `
+          ID: ${repeatData.id}；
+          ${$t('_title')}: ${repeatData.name}；
+          URL: ${repeatData.url}
+          `,
+          {
+            nzDuration: 10000,
+          }
+        )
+      } else {
+        this.message.success('OK')
+      }
+    } catch {}
   }
 
   async handleOk() {
@@ -286,13 +357,13 @@ export class CreateWebComponent {
         this.message.success($t('_waitHandle'))
       }
     } else {
-      payload['id'] = -Date.now()
+      payload['id'] = getTempId()
       try {
         const { oneIndex, twoIndex, threeIndex, breadcrumb } = getClassById(
           this.parentId
         )
-
         const w = websiteList[oneIndex].nav[twoIndex].nav[threeIndex].nav
+
         this.uploading = true
         if (this.isLogin) {
           w.unshift(payload as IWebProps)
@@ -322,7 +393,6 @@ export class CreateWebComponent {
       }
     }
     this.callback()
-    this.onOk?.emit?.(payload)
     this.onClose()
   }
 }
