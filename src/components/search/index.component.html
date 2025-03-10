@@ -22,6 +22,7 @@
         id="search-engine-input"
         (keyup)="onKey($event)"
         autocomplete="off"
+        #input
       />
     </nz-input-group>
     <ng-template #prefixIcon>
@@ -55,7 +56,11 @@
       ></i>
     </ng-template>
     <ng-template #addOnBeforeTemplate>
-      <nz-select [(ngModel)]="searchTypeValue" *ngIf="!currentEngine.url">
+      <nz-select
+        [(ngModel)]="searchTypeValue"
+        *ngIf="!currentEngine.url"
+        (ngModelChange)="onSelectChange()"
+      >
         <nz-option
           [nzLabel]="$t('_default')"
           [nzValue]="SearchType.All"
@@ -79,6 +84,10 @@
         <nz-option
           [nzLabel]="$t('_quick')"
           [nzValue]="SearchType.Quick"
+        ></nz-option>
+        <nz-option
+          [nzLabel]="$t('_tag')"
+          [nzValue]="SearchType.Tag"
         ></nz-option>
         <nz-option
           *ngIf="isLogin"
