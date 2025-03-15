@@ -4,7 +4,7 @@
 
 import { Component } from '@angular/core'
 import { CommonModule } from '@angular/common'
-import { INavProps } from 'src/types'
+import type { INavProps } from 'src/types'
 import { isMobile } from 'src/utils'
 import { setWebsiteList } from 'src/utils/web'
 import { websiteList } from 'src/store'
@@ -12,7 +12,7 @@ import { settings } from 'src/store'
 import { $t } from 'src/locale'
 import { CommonService } from 'src/services/common'
 import { STORAGE_KEY_MAP } from 'src/constants'
-import { isSelfDevelop } from 'src/utils/util'
+import { isSelfDevelop } from 'src/utils/utils'
 import { ComponentGroupComponent } from 'src/components/component-group/index.component'
 import { SearchComponent } from 'src/components/search/index.component'
 import { NzSpinModule } from 'ng-zorro-antd/spin'
@@ -50,7 +50,7 @@ import { WebListComponent } from 'src/components/web-list/index.component'
   styleUrls: ['./index.component.scss'],
 })
 export default class SideComponent {
-  $t = $t
+  readonly $t = $t
   websiteList: INavProps[] = websiteList
   isCollapsed = isMobile() || settings.sideCollapsed
 
